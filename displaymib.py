@@ -61,7 +61,9 @@ file_headers = {
     'prv': ['PRV_NUMBR', 'PRV_MINVAL', 'PRV_MAXVAL']
 }
 
-# Track the search state (last found tab and row)
+
+# Global variables to track the selected item
+selected_cell_value = None
 current_tab_index = 0
 current_row_index = None
 
@@ -69,6 +71,38 @@ current_row_index = None
 def log_message(message):
     log_textbox.insert(tk.END, message + '\n')
     log_textbox.see(tk.END)  # Scroll to the end of the log
+
+# Function to handle double-click and highlight the selected cell
+def on_double_click(event):
+    global selected_cell_value
+    tree = event.widget
+    region = tree.identify("region", event.x, event.y)
+    
+    if region == "cell":
+        row_id = tree.identify_row(event.y)
+        column_id = tree.identify_column(event.x)
+        
+        # Get the row's values and the column index
+        row_values = tree.item(row_id, "values")
+        col_idx = int(column_id.replace('#', '')) - 1
+        
+        # Highlight the selected cell (set focus visually)
+        tree.selection_set(row_id)
+        tree.focus(row_id)
+        tree.see(row_id)
+        
+        # Get the value of the selected cell
+        selected_cell_value = row_values[col_idx]
+        log_message(f"Selected cell value: {selected_cell_value}")
+
+# Function to handle copying the selected cell value
+def copy_to_clipboard(event):
+    if selected_cell_value:
+        root.clipboard_clear()
+        root.clipboard_append(selected_cell_value)
+        log_message(f"Copied to clipboard: {selected_cell_value}")
+    else:
+        log_message("No cell selected to copy.")
 
 # Function to search through tabs and highlight the search keyword
 def search_keyword():
@@ -136,13 +170,8 @@ def search_keyword():
 
 # Function to open and display all .dat files from a selected folder
 def open_folder():
-    global current_tab_index, current_row_index
     folder_path = filedialog.askdirectory()
     if folder_path:
-        # Reset search state when opening new files
-        current_tab_index = 0
-        current_row_index = None
-        
         # Get all .dat files in the folder
         dat_files = [f for f in os.listdir(folder_path) if f.endswith('.dat')]
 
@@ -211,6 +240,9 @@ def open_folder():
                     row += [''] * (len(headers) - len(row))
                 tree.insert("", "end", values=row)
 
+            # Bind double-click event to highlight and copy cell content to clipboard
+            tree.bind("<Double-1>", on_double_click)
+
 # Create tkinter window
 root = tk.Tk()
 root.title("MIB Viewer")  # Changed the title to "MIB Viewer"
@@ -246,5 +278,8 @@ button.pack()
 # Create a log text box at the bottom
 log_textbox = tk.Text(root, height=8, wrap='word', state='normal')
 log_textbox.pack(fill='both', padx=10, pady=5)
+
+# Bind Ctrl+C to copy the selected cell value
+root.bind('<Control-c>', copy_to_clipboard)
 
 root.mainloop()
