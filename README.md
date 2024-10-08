@@ -1,2 +1,2 @@
 # python
-python code
+a few python utilities
